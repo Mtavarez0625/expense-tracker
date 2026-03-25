@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -54,6 +56,7 @@ Top category: ${topCategory || "Unknown"}
     const insight =
       response.output_text ||
       "No insight generated.";
+
 
     return NextResponse.json({ insight });
   } catch (error) {
