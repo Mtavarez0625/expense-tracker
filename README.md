@@ -12,10 +12,10 @@ A production-ready expense tracking application with secure authentication, real
 ## 📸 Preview
 
 ### 🧾 Dashboard
-![Dashboard](./public/screenshots/expense-dashboard.png)
+![Dashboard](public/screenshots/expense-dashboard.png)
 
 ### 📊 Analytics & Insights
-![Analytics](./public/screenshots/expense-analytics.png)
+![Analytics](public/screenshots/expense-analytics.png)
 
 ---
 
