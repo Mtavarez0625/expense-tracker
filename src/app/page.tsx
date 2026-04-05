@@ -53,6 +53,13 @@ const formatCurrency = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
+const formatDate = (dateString: string) =>
+  new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
 export default function Home() {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -108,20 +115,23 @@ export default function Home() {
     }
   }, [status]);
 
-  const filteredExpenses = expenses.filter((expense) => {
-    const matchesCategory =
-      selectedCategory === "All" || expense.category === selectedCategory;
+  // Analytics dataset: responds to category filter only, NOT search.
+  // Drives all summary cards, charts, monthly trend, and AI insights.
+  const analyticsExpenses = expenses.filter(
+    (expense) => selectedCategory === "All" || expense.category === selectedCategory
+  );
 
-    const matchesSearch = expense.title
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+  // Display dataset: responds to both category filter and search term.
+  // Used only for the Recent Expenses list, sorted most-recent first.
+  const displayExpenses = analyticsExpenses
+    .filter((expense) =>
+      expense.title.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    return matchesCategory && matchesSearch;
-  });
+  const total = analyticsExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-  const total = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-  const categoryTotals = filteredExpenses.reduce(
+  const categoryTotals = analyticsExpenses.reduce(
     (acc: Record<string, number>, expense) => {
       acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
       return acc;
@@ -141,29 +151,16 @@ export default function Home() {
 
   const monthlyTotals: Record<string, number> = {};
 
-  filteredExpenses.forEach((expense) => {
+  analyticsExpenses.forEach((expense) => {
     const date = new Date(expense.createdAt);
-
-    const monthLabel = date.toLocaleString("en-US", {
-      month: "short",
-      year: "2-digit",
-    });
-
-    monthlyTotals[monthLabel] =
-      (monthlyTotals[monthLabel] || 0) + expense.amount;
+    const monthLabel = date.toLocaleString("en-US", { month: "short", year: "2-digit" });
+    monthlyTotals[monthLabel] = (monthlyTotals[monthLabel] || 0) + expense.amount;
   });
 
   const monthlyChartData = Object.entries(monthlyTotals)
-    .map(([month, amount]) => ({
-      month,
-      amount,
-      date: new Date(month),
-    }))
+    .map(([month, amount]) => ({ month, amount, date: new Date(month) }))
     .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .map(({ month, amount }) => ({
-      month,
-      amount,
-    }));
+    .map(({ month, amount }) => ({ month, amount }));
 
   const currentMonth = monthlyChartData[monthlyChartData.length - 1];
   const previousMonth = monthlyChartData[monthlyChartData.length - 2];
@@ -182,6 +179,46 @@ export default function Home() {
       : monthlyChange > 0
         ? "text-rose-600"
         : "text-emerald-600";
+
+  const monthlyChangeLabel =
+    monthlyChange === null
+      ? "Not enough history yet"
+      : `${monthlyChange >= 0 ? "+" : "-"} ${Math.abs(monthlyChange).toFixed(1)}% vs last month`;
+
+  // Single consolidated summary row — replaces the two separate summary grids.
+  const summaryItems = [
+    { label: "This Month", value: formatCurrency(currentMonthAmount), valueClass: "" },
+    {
+      label: "Last Month",
+      value: previousMonthAmount > 0 ? formatCurrency(previousMonthAmount) : "—",
+      valueClass: "",
+    },
+    {
+      label: "Monthly Change",
+      value:
+        monthlyChange === null
+          ? "—"
+          : `${monthlyChange >= 0 ? "↑ +" : "↓ "}${Math.abs(monthlyChange).toFixed(1)}%`,
+      valueClass: monthlyChangeColor,
+    },
+    { label: "Top Category", value: topCategory ?? "No data yet", valueClass: "" },
+  ];
+
+  const topThreeCategories = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([category, amount]) => ({ category, amount }));
+
+  // Named for what it actually is: the three highest-amount expenses, not the most recent.
+  const largestExpenses = [...analyticsExpenses]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3)
+    .map(({ title, amount, category }) => ({ title, amount, category }));
+
+  const expenseCount = analyticsExpenses.length;
+
+  const topCategoryAmount = topCategory ? categoryTotals[topCategory] || 0 : 0;
+  const topCategoryShare = total > 0 ? Math.round((topCategoryAmount / total) * 100) : 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -316,6 +353,10 @@ export default function Home() {
           previousMonthAmount,
           monthlyChange,
           topCategory,
+          topCategoryShare,
+          expenseCount,
+          topThreeCategories,
+          topThreeExpenses: largestExpenses,
         }),
       });
 
@@ -360,11 +401,16 @@ export default function Home() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
+            <span className="inline-block px-3 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-500 rounded-full">
+              AI-Powered Financial Dashboard
+            </span>
+
             <h1 className="text-5xl font-bold tracking-tight text-slate-900 md:text-6xl">
               Expense Tracker
             </h1>
+
             <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500">
-              Track spending, analyze trends, and manage your finances with a polished full-stack dashboard built with Next.js, Prisma, and PostgreSQL.
+              A modern financial dashboard to track spending, analyze trends, and generate actionable insights for smarter money decisions.
             </p>
           </div>
 
@@ -386,13 +432,49 @@ export default function Home() {
 
         <div className="mb-10 rounded-[2rem] bg-slate-900 p-8 text-white shadow-lg">
           <p className="text-sm font-medium uppercase tracking-[0.12em] text-slate-300">
-            Total Spending
+            {selectedCategory === "All" ? "Total Spending — All Categories" : `Total Spending — ${selectedCategory}`}
           </p>
           <p className="mt-3 text-5xl font-bold tracking-tight md:text-6xl">
             {formatCurrency(total)}
           </p>
         </div>
 
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {summaryItems.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg"
+            >
+              <p className="text-sm font-medium text-slate-500">{item.label}</p>
+              <p className={`mt-3 text-2xl font-bold tracking-tight ${item.valueClass || "text-slate-900"}`}>
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.12em] text-emerald-500">
+                AI Financial Signal
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                Smarter spending insights
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Spot trends, compare months, and surface the category driving your spending.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+              <span className="text-slate-500">Monthly Trend: </span>
+              <span className={`font-semibold ${monthlyChangeColor}`}>
+                {monthlyChangeLabel}
+              </span>
+            </div>
+        </div>
+      </div>
         <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
           <div className="mb-5">
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">
@@ -526,33 +608,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mb-8 grid gap-6 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <p className="text-sm font-medium text-slate-500">This Month</p>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-              {formatCurrency(currentMonthAmount)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <p className="text-sm font-medium text-slate-500">Last Month</p>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-              {formatCurrency(previousMonthAmount)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <p className="text-sm font-medium text-slate-500">Monthly Change</p>
-            <p
-              className={`mt-3 text-3xl font-bold tracking-tight ${monthlyChangeColor}`}
-            >
-              {monthlyChange === null
-                ? "N/A"
-                : `${monthlyChange >= 0 ? "↑ +" : "↓ "}${Math.abs(monthlyChange).toFixed(1)}%`}
-            </p>
-          </div>
-        </div>
-
         <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
             Monthly Spending Trend
@@ -612,7 +667,7 @@ export default function Home() {
                 AI Insights
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Generate a smart summary of your spending patterns
+                Generate an intelligent summary of your spending behavior, month-over-month changes, and top expense drivers.
               </p>
             </div>
 
@@ -628,12 +683,21 @@ export default function Home() {
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             {aiInsight ? (
-              <p className="leading-7 text-slate-700">{aiInsight}</p>
+              <div className="space-y-3">
+                <p className="text-sm font-medium uppercase tracking-[0.12em] text-emerald-500">
+                  Generated Insight
+                </p>
+                <p className="leading-7 text-slate-700">{aiInsight}</p>
+              </div>
             ) : (
-              <p className="text-slate-500">
-                No AI insights yet. Click “Generate Insight” to analyze your
-                dashboard.
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm font-medium uppercase tracking-[0.12em] text-slate-500">
+                  Waiting for analysis
+                </p>
+                <p className="text-slate-500">
+                  Generate AI insight to analyze this month's spending, compare it to prior activity, and surface useful financial patterns.
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -715,13 +779,13 @@ export default function Home() {
               Your latest transactions at a glance
             </p>
 
-            {filteredExpenses.length === 0 ? (
+            {displayExpenses.length === 0 ? (
               <p className="mt-6 text-slate-500">
                 No expenses found. Try adjusting your filters.
               </p>
             ) : (
               <ul className="mt-6 space-y-4">
-                {filteredExpenses.map((expense) => (
+                {displayExpenses.map((expense) => (
                   <li
                     key={expense.id}
                     className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
@@ -777,6 +841,10 @@ export default function Home() {
                         <div>
                           <div className="font-medium text-slate-900">
                             {expense.title}
+                          </div>
+
+                          <div className="mt-1 text-xs text-slate-400">
+                            {formatDate(expense.createdAt)}
                           </div>
 
                           <div className="mt-2">
