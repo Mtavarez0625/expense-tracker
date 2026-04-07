@@ -9,31 +9,70 @@ A production-ready expense tracking application with secure authentication, real
 
 ---
 
-## 📸 Preview
+## 📸 Screenshots
 
 ### 🧾 Dashboard
 ![Dashboard](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-dashboard.png)
 
-### 📊 Analytics & Insights
-![Analytics](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-analytics.png)
+### 📊 Financial Overview
+![Overview](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-overview.png)
+
+### 📊 Spending Breakdown
+![Breakdown](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-breakdown.png)
+
+### 📈 Monthly Spending Trend
+![Trend](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-monthly-trend.png)
+
+### 🧠 AI Financial Insights
+![AI](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-ai.png)
+
+### 📋 Expense Management
+![Management](https://raw.githubusercontent.com/Mtavarez0625/expense-tracker/main/public/screenshots/expense-management.png)
 
 ---
 
 ## 🧠 Problem
 
-Managing personal finances is often fragmented across apps, spreadsheets, or manual tracking.  
-Users lack **real-time visibility** and **actionable insights** into their spending habits.
+Managing personal finances is often fragmented across spreadsheets, banking apps, and manual tracking.  
+Most users lack:
+
+- Real-time visibility into spending habits  
+- Clear month-over-month comparisons  
+- Actionable insights to improve financial decisions  
+
+As a result, users track data — but don’t gain meaningful insights.
 
 ---
 
 ## 💡 Solution
 
-Built a full-stack expense tracking system that:
+Built a full-stack expense tracking platform that transforms raw financial data into actionable insights:
 
-- Centralizes financial data
-- Provides real-time analytics
-- Uses AI to generate insights and recommendations
-- Ensures secure and scalable user data management
+- Centralizes all expenses into a single, structured system  
+- Separates analytics data from UI filtering for accurate insights  
+- Provides real-time dashboards with category and monthly breakdowns  
+- Tracks spending trends across multiple months  
+- Integrates AI to generate intelligent financial summaries  
+
+The system is designed with a production mindset, prioritizing data integrity, scalability, and user experience.
+
+---
+
+## 🧠 Engineering Decisions
+
+- Implemented dual data layers:
+  - `analyticsExpenses` → drives charts, summaries, AI insights  
+  - `displayExpenses` → drives filtered UI lists  
+
+  This prevents UI filters (search) from corrupting analytics.
+
+- Ensured consistent data ordering (newest first) for better UX
+
+- Designed API routes with strict user scoping (`userId`) for security
+
+- Used Prisma for type-safe queries and scalable database access
+
+- Built reusable formatting utilities (currency, date) for consistency
 
 ---
 
@@ -92,4 +131,4 @@ Built a full-stack expense tracking system that:
 
 **Marcos Tavarez**  
 Full Stack Developer  
-Available for remote & hybrid opportunities
+Available for remote, hybrid, or relocation opportunities
